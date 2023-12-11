@@ -28,3 +28,27 @@ class AppiumOC:
             return self.driver.find_elements(AppiumBy.XPATH, xpath)
 
         return self.driver.find_element(AppiumBy.XPATH, xpath)
+
+    def attribute(self, elem, attr: str, by: str = "accessibilty"):
+        """by: accessibilty or xpath"""
+        if isinstance(elem, str):
+            elem = getattr(self, f"elems_by_{by}")(elem)
+        return elem.get_attribute(attr)
+
+    def safeclick(self, elem, by: str = "accessibilty"):
+        """by: accessibilty or xpath"""
+        if isinstance(elem, str):
+            elem = getattr(self, f"elems_by_{by}")(elem)
+        if not self.attribute(elem, "clickable"):
+            raise Exception("clickable = False")
+        elem.click()
+        return True
+
+    def multi_click(self, elems: list):
+        for elem in elems:
+            if isinstance(elem, list):
+                kwargs = dict(zip(["by", "elem"], elem))
+                self.safeclick(**kwargs)
+                continue
+            self.safeclick(elem)
+        return True
