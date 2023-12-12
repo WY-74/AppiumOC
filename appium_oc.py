@@ -9,6 +9,13 @@ class AppiumOC:
     def _sleep(self, times: int = 1):
         time.sleep(times)
 
+    def _elem_center(self, elem):
+        location = elem.location
+        size = elem.size
+        x = location['x'] + size['width'] / 2
+        y = location['y'] + size['height'] / 2
+        return (x, y)
+
     def clear(self, elem):
         elem.clear()
         return True
@@ -39,9 +46,18 @@ class AppiumOC:
         """by: accessibilty or xpath"""
         if isinstance(elem, str):
             elem = getattr(self, f"elems_by_{by}")(elem)
-        if not self.attribute(elem, "clickable"):
-            raise Exception("clickable = False")
+        if self.attribute(elem, "clickable") == "false":
+            self.driver.tap([self._elem_center(elem)])
+            print("\033[93mClick by tap\033[0m")
+            return True
         elem.click()
+        return True
+
+    def send(self, elem, text: str, by: str = "accessibilty"):
+        """by: accessibilty or xpath"""
+        if isinstance(elem, str):
+            elem = getattr(self, f"elems_by_{by}")(elem)
+        elem.send_keys(text)
         return True
 
     def multi_click(self, elems: list):
