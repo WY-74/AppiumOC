@@ -20,32 +20,24 @@ class AppiumOC:
         elem.clear()
         return True
 
-    def elems_by_accessibilty(self, id: str, multiple: bool = False):
+    def get_elems(self, value: str, by: str = "XPATH", multiple: bool = False):
         """
-        Android: content-desc
-        iOS: accessibility-id
+        ACCESSIBILITY_ID(Android): content-desc
+        ACCESSIBILITY_ID(iOS): accessibility-id
         """
         if multiple:
-            return self.driver.find_elements(AppiumBy.ACCESSIBILITY_ID, id)
+            return self.driver.find_elements(getattr(AppiumBy, by), value)
 
-        return self.driver.find_element(AppiumBy.ACCESSIBILITY_ID, id)
+        return self.driver.find_element(getattr(AppiumBy, by), value)
 
-    def elems_by_xpath(self, xpath: str, multiple: bool = False):
-        if multiple:
-            return self.driver.find_elements(AppiumBy.XPATH, xpath)
-
-        return self.driver.find_element(AppiumBy.XPATH, xpath)
-
-    def attribute(self, elem, attr: str, by: str = "accessibilty"):
-        """by: accessibilty or xpath"""
+    def attribute(self, elem, attr: str, by: str = "XPATH"):
         if isinstance(elem, str):
-            elem = getattr(self, f"elems_by_{by}")(elem)
+            elem = self.get_elems(elem, by=by)
         return elem.get_attribute(attr)
 
-    def safeclick(self, elem, by: str = "accessibilty"):
-        """by: accessibilty or xpath"""
+    def safeclick(self, elem, by: str = "XPATH"):
         if isinstance(elem, str):
-            elem = getattr(self, f"elems_by_{by}")(elem)
+            elem = self.get_elems(elem, by=by)
         if self.attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             print("\033[93mClick by tap\033[0m")
@@ -53,10 +45,9 @@ class AppiumOC:
         elem.click()
         return True
 
-    def send(self, elem, text: str, by: str = "accessibilty"):
-        """by: accessibilty or xpath"""
+    def send(self, elem, text: str, by: str = "XPATH"):
         if isinstance(elem, str):
-            elem = getattr(self, f"elems_by_{by}")(elem)
+            elem = self.get_elems(elem, by=by)
         elem.send_keys(text)
         return True
 
