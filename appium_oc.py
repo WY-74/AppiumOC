@@ -1,4 +1,5 @@
 import time
+from typing import List
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -26,18 +27,24 @@ class AppiumOC:
         locator = (getattr(AppiumBy, by), value)
         return WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located(locator))
 
-    def _init_actionchains(self, interaction: str):
+    def _init_actionchains(self, interaction: str, w3c: bool = False):
         """
         ponter: mouse, touch, pen
         key: key
         wheel: wheel
         """
         _pointer = ["mouse", "touch", "pen"]
+        _class = "pointer" if interaction in _pointer else interaction
+        _args = [interaction]
+
         _device_map = {"pointer": PointerInput, "key": KeyInput, "wheel": WheelInput}
         if interaction in _pointer:
-            return ActionChains(self.driver, devices=[_device_map["pointer"](interaction, "mouse")])
+            _args.append("mouse")
+        ac = ActionChains(self.driver, devices=[_device_map[_class](*_args)])
 
-        return ActionChains(self.driver, devices=[_device_map[interaction](interaction)])
+        if w3c:
+            return ac.w3c_actions
+        return ac
 
     def clear(self, elem):
         elem.clear()
@@ -89,9 +96,12 @@ class AppiumOC:
             self.safeclick(elem)
         return True
 
-    def move_with_touch(self, s: tuple, e: tuple):
-        ac = self._init_actionchains("touch")
-        ac.w3c_actions.pointer_action.move_to_location(*s)
-        ac.w3c_actions.pointer_action.pointer_down()
-        ac.w3c_actions.pointer_action.move_to_location(*e)
+    def move_to_location_by_touch(self, pointers: List[tuple]):
+        ac = self._init_actionchains("touch", w3c=True)
+        ac.pointer_action.move_to_location(*pointers[0])
+        ac.pointer_action.pointer_down()
+
+        for location in pointers[1:]:
+            ac.pointer_action.move_to_location(*location)
         ac.perform()
+        return True
