@@ -1,5 +1,5 @@
-import time
 from typing import List
+from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -10,22 +10,21 @@ from selenium.webdriver.common.actions.wheel_input import WheelInput
 
 
 class AppiumOC:
-    def __init__(self, driver) -> None:
+    """
+    blacklist: [(self.by.ID, "xxxxxx"), (self.by.XPATH, "xxxxxx")]
+    """
+
+    def __init__(self, driver: WebDriver = None):
+        self.by = AppiumBy
+        self.blacklist = []
         self.driver = driver
 
-    def _sleep(self, times: int = 1):
-        time.sleep(times)
-
-    def _elem_center(self, elem):
+    def _elem_center(self, elem: WebDriver):
         location = elem.location
         size = elem.size
         x = location['x'] + size['width'] / 2
         y = location['y'] + size['height'] / 2
         return (x, y)
-
-    def _get_visibility_elem(self, value: str, by: str = "XPATH"):
-        locator = (getattr(AppiumBy, by), value)
-        return WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located(locator))
 
     def _init_actionchains(self, interaction: str, w3c: bool = False):
         """
@@ -46,57 +45,95 @@ class AppiumOC:
             return ac.w3c_actions
         return ac
 
-    def clear(self, elem):
-        elem.clear()
-        return True
-
-    def get_elems(self, value: str, by: str = "XPATH", multiple: bool = False):
+    def find_element(self, by: AppiumBy, value: str, timeout: int = 5):
         """
         ACCESSIBILITY_ID(Android): content-desc
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
-        if multiple:
-            return self.driver.find_elements(getattr(AppiumBy, by), value)
-        return self.driver.find_element(getattr(AppiumBy, by), value)
+        try:
+            elem = self.driver.find_element(by=by, value=value)
+            return WebDriverWait(self.driver, timeout).until(EC.visibility_of(elem))
+        except Exception as e:
+            for black in self.blacklist:
+                _elems = self.driver.find_elements(*black)
+                if _elems:
+                    _elems[0].click()
+                    return self.find_element(by=by, value=value)
+            raise e
 
-    def attribute(self, elem, attr: str, by: str = "XPATH"):
-        if isinstance(elem, str):
-            elem = self.get_elems(elem, by=by)
-        return elem.get_attribute(attr)
+    def find_elements(self, by: AppiumBy, value: str):
+        elems = self.driver.find_elements(by=by, value=value)
+        if elems:
+            return elems
+        for black in self.blacklist:
+            _elems = self.driver.find_elements(*black)
+            if _elems:
+                _elems[0].click()
+                return self.find_elements(by=by, value=value)
+        return []
 
-    def page_source_to_file(self, to: str = "/tmp/source.xml"):
-        source = self.driver.page_source
-        with open(to, "a+") as f:
-            f.write(source)
-        return True
+    def get_attribute(self, elem: WebDriver | tuple, attr: str):
+        if isinstance(elem, tuple):
+            elem = self.find_element(*elem)
+        try:
+            return elem.get_attribute(attr)
+        except Exception as e:
+            for black in self.blacklist:
+                _elems = self.driver.find_elements(*black)
+                if _elems:
+                    _elems[0].click()
+                    return self.get_attribute(elem=elem, attr=attr)
+            raise e
 
-    def safeclick(self, elem, by: str = "XPATH"):
-        if isinstance(elem, str):
-            elem = self._get_visibility_elem(elem, by=by)
+    def safeclick(self, elem: WebDriver | tuple):
+        if isinstance(elem, tuple):
+            elem = self.find_element(*elem)
 
-        if self.attribute(elem, "clickable") == "false":
+        if self.get_attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             print("\033[93mClick by tap!\033[0m")
             return True
         elem.click()
         return True
 
-    def send(self, elem, text: str, by: str = "XPATH"):
-        if isinstance(elem, str):
-            elem = self.get_elems(elem, by=by)
-        elem.send_keys(text)
+    def send_keys(self, elem: WebDriver | tuple, text: str):
+        if isinstance(elem, tuple):
+            elem = self.find_element(*elem)
+        try:
+            elem.send_keys(text)
+            return True
+        except Exception as e:
+            for black in self.blacklist:
+                _elems = self.driver.find_elements(*black)
+                if _elems:
+                    _elems[0].click()
+                    return self.send_keys(elem=elem, text=text)
+            raise e
+
+    def page_source_as_file(self, path: str = "/tmp/source.xml"):
+        source = self.driver.page_source
+        with open(path, "a") as f:
+            f.write(source)
         return True
 
-    def multi_click(self, elems: list):
+    def screenshot_as_file(self, path: str = "/tmp/screenshot.png"):
+        return self.driver.get_screenshot_as_file(path)
+
+    def multi_click(self, elems: List[WebDriver | tuple]):
+        """
+        elems: [elem1, elem2, (self.by.XPATH, "xxxxxx")]
+        """
         for elem in elems:
             if isinstance(elem, list):
-                kwargs = dict(zip(["elem", "by"], elem))
-                self.safeclick(**kwargs)
+                self.safeclick(*elem)
                 continue
             self.safeclick(elem)
         return True
 
     def move_to_location_by_touch(self, pointers: List[tuple]):
+        """
+        pointers: [(175, 247),(175, 983) ,(904, 983)]
+        """
         ac = self._init_actionchains("touch", w3c=True)
         ac.pointer_action.move_to_location(*pointers[0])
         ac.pointer_action.pointer_down()
