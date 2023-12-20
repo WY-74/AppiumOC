@@ -1,4 +1,6 @@
+import os
 from typing import List
+from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
@@ -18,6 +20,8 @@ class AppiumOC:
         self.by = AppiumBy
         self.blacklist = []
         self.driver = driver
+        self.log = "/tmp/log"
+        self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
     def _elem_center(self, elem: WebDriver):
         location = elem.location
@@ -59,6 +63,7 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.find_element(by=by, value=value)
+            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
             raise e
 
     def find_elements(self, by: AppiumBy, value: str):
@@ -83,6 +88,7 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.get_attribute(elem=elem, attr=attr)
+            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
             raise e
 
     def safeclick(self, elem: WebDriver | tuple):
@@ -108,16 +114,34 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.send_keys(elem=elem, text=text)
+            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
             raise e
 
     def page_source_as_file(self, path: str = "/tmp/source.xml"):
-        source = self.driver.page_source
-        with open(path, "a") as f:
-            f.write(source)
-        return True
+        try:
+            source = self.driver.page_source
+            with open(path, "a") as f:
+                f.write(source)
+            del source
+            return True
+        except FileNotFoundError:
+            directory = os.path.dirname(path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                return self.page_source_as_file(path=path)
 
-    def screenshot_as_file(self, path: str = "/tmp/screenshot.png"):
-        return self.driver.get_screenshot_as_file(path)
+    def screenshot_as_file(self, path):
+        try:
+            png = self.driver.get_screenshot_as_png()
+            with open(path, "wb") as f:
+                f.write(png)
+            del png
+            return True
+        except FileNotFoundError:
+            directory = os.path.dirname(path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                return self.screenshot_as_file(path=path)
 
     def multi_click(self, elems: List[WebDriver | tuple]):
         """
