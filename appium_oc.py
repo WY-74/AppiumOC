@@ -63,7 +63,7 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.find_element(by=by, value=value)
-            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
+            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def find_elements(self, by: AppiumBy, value: str):
@@ -88,7 +88,7 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.get_attribute(elem=elem, attr=attr)
-            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
+            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def safeclick(self, elem: WebDriver | tuple):
@@ -114,7 +114,7 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.send_keys(elem=elem, text=text)
-            self.screenshot_as_file(f"{self.log}/screenshout/{self.timestamp}.png")
+            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def page_source_as_file(self, path: str = "/tmp/source.xml"):
