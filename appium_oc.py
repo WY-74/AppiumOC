@@ -22,6 +22,7 @@ class AppiumOC:
         self.driver = driver
         self.log = "/tmp/log"
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        self.timeout = 5
 
     def _elem_center(self, elem: WebDriver):
         location = elem.location
@@ -49,14 +50,14 @@ class AppiumOC:
             return ac.w3c_actions
         return ac
 
-    def find_element(self, by: AppiumBy, value: str, timeout: int = 5):
+    def find_element(self, by: AppiumBy, value: str):
         """
         ACCESSIBILITY_ID(Android): content-desc
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
         try:
             elem = self.driver.find_element(by=by, value=value)
-            return WebDriverWait(self.driver, timeout).until(EC.visibility_of(elem))
+            return WebDriverWait(self.driver, self.timeout).until(EC.visibility_of(elem))
         except Exception as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
@@ -81,6 +82,8 @@ class AppiumOC:
         if isinstance(elem, tuple):
             elem = self.find_element(*elem)
         try:
+            if attr == "text":
+                return elem.text
             return elem.get_attribute(attr)
         except Exception as e:
             for black in self.blacklist:
@@ -117,7 +120,7 @@ class AppiumOC:
             self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
-    def page_source_as_file(self, path: str = "/tmp/source.xml"):
+    def page_source_as_file(self, path):
         try:
             source = self.driver.page_source
             with open(path, "a") as f:
@@ -154,6 +157,13 @@ class AppiumOC:
             self.safeclick(elem)
         return True
 
+    def scroll_to_elem_by_text(self, text: str):
+        uiautomator = (
+            f'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text("{text}"))'
+        )
+        elem = self.driver.find_element(self.by.ANDROID_UIAUTOMATOR, uiautomator)
+        return elem
+
     def move_to_location_by_touch(self, pointers: List[tuple]):
         """
         pointers: [(175, 247),(175, 983) ,(904, 983)]
@@ -166,3 +176,12 @@ class AppiumOC:
             ac.pointer_action.move_to_location(*location)
         ac.perform()
         return True
+
+    def execute_into_context(self, context: str, func, **kwargs):
+        current_context = self.driver.current_context
+        WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.contexts) > 1)
+
+        self.driver.switch_to.context(context)
+        result = func(**kwargs)
+        self.driver.switch_to.context(current_context)
+        return result
