@@ -3,6 +3,7 @@ from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
@@ -56,9 +57,9 @@ class AppiumOC:
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
         try:
-            elem = self.driver.find_element(by=by, value=value)
-            return WebDriverWait(self.driver, self.timeout).until(EC.visibility_of(elem))
-        except Exception as e:
+            return self.driver.find_element(by=by, value=value)
+            # return WebDriverWait(self.driver, self.timeout).until(EC.visibility_of(elem))
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
@@ -85,7 +86,7 @@ class AppiumOC:
             if attr == "text":
                 return elem.text
             return elem.get_attribute(attr)
-        except Exception as e:
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
@@ -105,13 +106,24 @@ class AppiumOC:
         elem.click()
         return True
 
+    def scrollclick_with_text(self, text: str | List[str]):
+        uiautomator = 'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text("{}"))'
+        if isinstance(text, str):
+            self.safeclick(self.driver.find_element(self.by.ACCESSIBILITY_ID, uiautomator.format(text)))
+            return True
+
+        for t in text:
+            elem = self.driver.find_element(self.by.ANDROID_UIAUTOMATOR, uiautomator.format(t))
+            self.safeclick(elem)
+        return True
+
     def send_keys(self, elem: WebDriver | tuple, text: str):
         if isinstance(elem, tuple):
             elem = self.find_element(*elem)
         try:
             elem.send_keys(text)
             return True
-        except Exception as e:
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
@@ -146,24 +158,6 @@ class AppiumOC:
                 os.makedirs(directory)
                 return self.screenshot_as_file(path=path)
 
-    def multi_click(self, elems: List[WebDriver | tuple]):
-        """
-        elems: [elem1, elem2, (self.by.XPATH, "xxxxxx")]
-        """
-        for elem in elems:
-            if isinstance(elem, list):
-                self.safeclick(*elem)
-                continue
-            self.safeclick(elem)
-        return True
-
-    def scroll_to_elem_by_text(self, text: str):
-        uiautomator = (
-            f'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text("{text}"))'
-        )
-        elem = self.driver.find_element(self.by.ANDROID_UIAUTOMATOR, uiautomator)
-        return elem
-
     def move_to_location_by_touch(self, pointers: List[tuple]):
         """
         pointers: [(175, 247),(175, 983) ,(904, 983)]
@@ -177,9 +171,12 @@ class AppiumOC:
         ac.perform()
         return True
 
-    def execute_into_context(self, context: str, func, **kwargs):
+    def execute_into_context(self, func, context: str = "", **kwargs):
         current_context = self.driver.current_context
         WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.contexts) > 1)
+
+        if not context:
+            context = self.driver.contexts[-1]
 
         self.driver.switch_to.context(context)
         result = func(**kwargs)
