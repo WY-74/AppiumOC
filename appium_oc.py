@@ -1,4 +1,6 @@
 import os
+import time
+import random
 from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
@@ -23,6 +25,11 @@ class AppiumOC:
         self.log = "/tmp/log"
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.timeout = 5
+
+    def _sleep(self):
+        times = random.randint(0, self.timeout)
+        time.sleep(times)
+        print(f"Sleep : {times}")
 
     def _elem_center(self, elem: WebDriver):
         location = elem.location
@@ -63,7 +70,6 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.find_element(by=by, value=value)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def find_elements(self, by: AppiumBy, value: str):
@@ -90,7 +96,6 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.get_attribute(elem=elem, attr=attr)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def safeclick(self, elem: WebDriver | tuple):
@@ -121,7 +126,6 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.send_keys(elem=elem, text=text)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def page_source_as_file(self, path):
@@ -163,18 +167,18 @@ class AppiumOC:
         ac.perform()
         return True
 
-    def execute_into_context(self, func, context: str = "", **kwargs):
-        current_context = self.driver.current_context
+    def switch_to_latest_context(self):
         WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.contexts) > 1)
-
-        if not context:
-            context = self.driver.contexts[-1]
-
+        context = self.driver.contexts[-1]
         self.driver.switch_to.context(context)
-        result = func(**kwargs)
-        self.driver.switch_to.context(current_context)
-        return result
+        return True
 
     def get(self, url: str):
         self.driver.get(url)
+        return True
+
+    def switch_to_latest_window(self):
+        WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.window_handles) > 1)
+        window_handles = self.driver.window_handles
+        self.driver.switch_to.window(window_handles[-1])
         return True
