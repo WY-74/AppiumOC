@@ -1,10 +1,12 @@
 import os
+import time
+import random
 from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.actions.pointer_input import PointerInput
 from selenium.webdriver.common.actions.key_input import KeyInput
@@ -22,6 +24,12 @@ class AppiumOC:
         self.driver = driver
         self.log = "/tmp/log"
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        self.timeout = 5
+
+    def _sleep(self):
+        times = random.randint(0, self.timeout)
+        time.sleep(times)
+        print(f"Sleep : {times}")
 
     def _elem_center(self, elem: WebDriver):
         location = elem.location
@@ -49,21 +57,19 @@ class AppiumOC:
             return ac.w3c_actions
         return ac
 
-    def find_element(self, by: AppiumBy, value: str, timeout: int = 5):
+    def find_element(self, by: AppiumBy, value: str):
         """
         ACCESSIBILITY_ID(Android): content-desc
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
         try:
-            elem = self.driver.find_element(by=by, value=value)
-            return WebDriverWait(self.driver, timeout).until(EC.visibility_of(elem))
-        except Exception as e:
+            return self.driver.find_element(by=by, value=value)
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
                     _elems[0].click()
                     return self.find_element(by=by, value=value)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def find_elements(self, by: AppiumBy, value: str):
@@ -81,14 +87,15 @@ class AppiumOC:
         if isinstance(elem, tuple):
             elem = self.find_element(*elem)
         try:
+            if attr == "text":
+                return elem.text
             return elem.get_attribute(attr)
-        except Exception as e:
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
                     _elems[0].click()
                     return self.get_attribute(elem=elem, attr=attr)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
     def safeclick(self, elem: WebDriver | tuple):
@@ -102,22 +109,26 @@ class AppiumOC:
         elem.click()
         return True
 
+    def multiclick(self, locators: tuple):
+        for locator in locators:
+            self.safeclick(locator)
+        return True
+
     def send_keys(self, elem: WebDriver | tuple, text: str):
         if isinstance(elem, tuple):
             elem = self.find_element(*elem)
         try:
             elem.send_keys(text)
             return True
-        except Exception as e:
+        except NoSuchElementException as e:
             for black in self.blacklist:
                 _elems = self.driver.find_elements(*black)
                 if _elems:
                     _elems[0].click()
                     return self.send_keys(elem=elem, text=text)
-            self.screenshot_as_file(f"{self.log}/error_screenshout/{self.timestamp}.png")
             raise e
 
-    def page_source_as_file(self, path: str = "/tmp/source.xml"):
+    def page_source_as_file(self, path):
         try:
             source = self.driver.page_source
             with open(path, "a") as f:
@@ -143,17 +154,6 @@ class AppiumOC:
                 os.makedirs(directory)
                 return self.screenshot_as_file(path=path)
 
-    def multi_click(self, elems: List[WebDriver | tuple]):
-        """
-        elems: [elem1, elem2, (self.by.XPATH, "xxxxxx")]
-        """
-        for elem in elems:
-            if isinstance(elem, list):
-                self.safeclick(*elem)
-                continue
-            self.safeclick(elem)
-        return True
-
     def move_to_location_by_touch(self, pointers: List[tuple]):
         """
         pointers: [(175, 247),(175, 983) ,(904, 983)]
@@ -165,4 +165,20 @@ class AppiumOC:
         for location in pointers[1:]:
             ac.pointer_action.move_to_location(*location)
         ac.perform()
+        return True
+
+    def switch_to_latest_context(self):
+        WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.contexts) > 1)
+        context = self.driver.contexts[-1]
+        self.driver.switch_to.context(context)
+        return True
+
+    def get(self, url: str):
+        self.driver.get(url)
+        return True
+
+    def switch_to_latest_window(self):
+        WebDriverWait(self.driver, self.timeout).until(lambda driver: len(self.driver.window_handles) > 1)
+        window_handles = self.driver.window_handles
+        self.driver.switch_to.window(window_handles[-1])
         return True
