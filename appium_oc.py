@@ -28,8 +28,8 @@ class AppiumOC:
 
     def _sleep(self):
         times = random.randint(0, self.timeout)
-        time.sleep(times)
         print(f"Sleep : {times}")
+        time.sleep(times)
 
     def _elem_center(self, elem: WebDriver):
         location = elem.location
@@ -70,6 +70,17 @@ class AppiumOC:
                 if _elems:
                     _elems[0].click()
                     return self.find_element(by=by, value=value)
+            raise e
+
+    def find_subelement(self, element: WebDriver, by: AppiumBy, value: str):
+        try:
+            return element.find_element(by=by, value=value)
+        except NoSuchElementException as e:
+            for black in self.blacklist:
+                _elems = self.driver.find_elements(*black)
+                if _elems:
+                    _elems[0].click()
+                    return self.find_subelement(element=element, by=by, value=value)
             raise e
 
     def find_elements(self, by: AppiumBy, value: str):
