@@ -5,6 +5,7 @@ from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
+from appium.webdriver.common.touch_action import TouchAction
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
@@ -56,6 +57,9 @@ class AppiumOC:
         if w3c:
             return ac.w3c_actions
         return ac
+
+    def back(self):
+        self.driver.back()
 
     def find_element(self, by: AppiumBy, value: str):
         """
@@ -123,6 +127,12 @@ class AppiumOC:
     def multiclick(self, locators: tuple):
         for locator in locators:
             self.safeclick(locator)
+        return True
+
+    def touch_with_location(self, x: int, y: int):
+        ac = self._init_actionchains("touch", w3c=True)
+        ac.pointer_action.move_to_location(x, y).click()
+        ac.perform()
         return True
 
     def send_keys(self, elem: WebDriver | tuple, text: str):
