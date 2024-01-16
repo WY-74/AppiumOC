@@ -5,7 +5,8 @@ from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
-from appium.webdriver.common.touch_action import TouchAction
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
@@ -87,6 +88,13 @@ class AppiumOC:
                     return self.find_subelement(element=element, by=by, value=value)
             raise e
 
+    def must_get_element(self, by: AppiumBy, value: str):
+        elem = WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((by, value)))
+        return elem
+
+    def must_not_element(self, by: AppiumBy, value: str):
+        return WebDriverWait(self.driver, self.timeout).until(EC.invisibility_of_element((by, value)))
+
     def find_elements(self, by: AppiumBy, value: str):
         elems = self.driver.find_elements(by=by, value=value)
         if elems:
@@ -119,7 +127,6 @@ class AppiumOC:
 
         if self.get_attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
-            print("\033[93mClick by tap!\033[0m")
             return True
         elem.click()
         return True
@@ -129,10 +136,8 @@ class AppiumOC:
             self.safeclick(locator)
         return True
 
-    def touch_with_location(self, x: int, y: int):
-        ac = self._init_actionchains("touch", w3c=True)
-        ac.pointer_action.move_to_location(x, y).click()
-        ac.perform()
+    def tap(self, x: int, y: int):
+        self.driver.tap([(x, y)])
         return True
 
     def send_keys(self, elem: WebDriver | tuple, text: str):
