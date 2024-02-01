@@ -14,7 +14,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.actions.pointer_input import PointerInput
 from selenium.webdriver.common.actions.key_input import KeyInput
 from selenium.webdriver.common.actions.wheel_input import WheelInput
-from decorator import remove_pop_ups
+from appium_oc.decorator import remove_pop_ups
 
 
 class AppiumOC:
