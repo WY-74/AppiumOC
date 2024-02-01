@@ -5,12 +5,16 @@ from typing import List
 from datetime import datetime
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
+from appium.webdriver.webelement import WebElement as MobileWebElement
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.actions.pointer_input import PointerInput
 from selenium.webdriver.common.actions.key_input import KeyInput
 from selenium.webdriver.common.actions.wheel_input import WheelInput
+from decorator import remove_pop_ups
 
 
 class AppiumOC:
@@ -24,53 +28,31 @@ class AppiumOC:
         self.driver = driver
         self.log = "/tmp/log"
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        self.timeout = 5
+        self.timeout = 20
 
-    def _sleep(self):
-        times = random.randint(0, self.timeout)
-        time.sleep(times)
-        print(f"Sleep : {times}")
+    def back(self):
+        self.driver.back()
 
-    def _elem_center(self, elem: WebDriver):
-        location = elem.location
-        size = elem.size
-        x = location['x'] + size['width'] / 2
-        y = location['y'] + size['height'] / 2
-        return (x, y)
-
-    def _init_actionchains(self, interaction: str, w3c: bool = False):
-        """
-        ponter: mouse, touch, pen
-        key: key
-        wheel: wheel
-        """
-        _pointer = ["mouse", "touch", "pen"]
-        _class = "pointer" if interaction in _pointer else interaction
-        _args = [interaction]
-
-        _device_map = {"pointer": PointerInput, "key": KeyInput, "wheel": WheelInput}
-        if interaction in _pointer:
-            _args.append("mouse")
-        ac = ActionChains(self.driver, devices=[_device_map[_class](*_args)])
-
-        if w3c:
-            return ac.w3c_actions
-        return ac
-
+    @remove_pop_ups
     def find_element(self, by: AppiumBy, value: str):
         """
         ACCESSIBILITY_ID(Android): content-desc
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
-        try:
-            return self.driver.find_element(by=by, value=value)
-        except NoSuchElementException as e:
-            for black in self.blacklist:
-                _elems = self.driver.find_elements(*black)
-                if _elems:
-                    _elems[0].click()
-                    return self.find_element(by=by, value=value)
-            raise e
+        return self.driver.find_element(by=by, value=value)
+
+    @remove_pop_ups
+    def find_subelement(self, element: MobileWebElement, by: AppiumBy, value: str):
+        return element.find_element(by=by, value=value)
+
+    def must_get_element(self, by: AppiumBy, value: str):
+        return WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((by, value)))
+
+    def move_to_find_element(self, by: AppiumBy, value: str, start: tuple, end: tuple):
+        return WebDriverWait(self.driver, self.timeout).until(self._move_element_presence_in_dom(by, value, start, end))
+
+    def must_not_element(self, by: AppiumBy, value: str):
+        return WebDriverWait(self.driver, self.timeout).until_not(EC.presence_of_element_located((by, value)))
 
     def find_elements(self, by: AppiumBy, value: str):
         elems = self.driver.find_elements(by=by, value=value)
@@ -83,28 +65,15 @@ class AppiumOC:
                 return self.find_elements(by=by, value=value)
         return []
 
-    def get_attribute(self, elem: WebDriver | tuple, attr: str):
-        if isinstance(elem, tuple):
-            elem = self.find_element(*elem)
-        try:
-            if attr == "text":
-                return elem.text
-            return elem.get_attribute(attr)
-        except NoSuchElementException as e:
-            for black in self.blacklist:
-                _elems = self.driver.find_elements(*black)
-                if _elems:
-                    _elems[0].click()
-                    return self.get_attribute(elem=elem, attr=attr)
-            raise e
+    @remove_pop_ups
+    def get_attribute(self, elem: MobileWebElement, attr: str):
+        if attr == "text":
+            return elem.text
+        return elem.get_attribute(attr)
 
-    def safeclick(self, elem: WebDriver | tuple):
-        if isinstance(elem, tuple):
-            elem = self.find_element(*elem)
-
+    def click(self, elem: MobileWebElement):
         if self.get_attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
-            print("\033[93mClick by tap!\033[0m")
             return True
         elem.click()
         return True
@@ -114,19 +83,14 @@ class AppiumOC:
             self.safeclick(locator)
         return True
 
-    def send_keys(self, elem: WebDriver | tuple, text: str):
-        if isinstance(elem, tuple):
-            elem = self.find_element(*elem)
-        try:
-            elem.send_keys(text)
-            return True
-        except NoSuchElementException as e:
-            for black in self.blacklist:
-                _elems = self.driver.find_elements(*black)
-                if _elems:
-                    _elems[0].click()
-                    return self.send_keys(elem=elem, text=text)
-            raise e
+    def tap(self, x: int, y: int):
+        self.driver.tap([(x, y)])
+        return True
+
+    @remove_pop_ups
+    def send_keys(self, elem: MobileWebElement, text: str):
+        elem.send_keys(text)
+        return True
 
     def page_source_as_file(self, path):
         try:
@@ -182,3 +146,44 @@ class AppiumOC:
         window_handles = self.driver.window_handles
         self.driver.switch_to.window(window_handles[-1])
         return True
+
+    def _sleep(self):
+        times = random.randint(0, self.timeout)
+        print(f"Sleep : {times}")
+        time.sleep(times)
+
+    def _elem_center(self, elem: MobileWebElement):
+        location = elem.location
+        size = elem.size
+        x = location['x'] + size['width'] / 2
+        y = location['y'] + size['height'] / 2
+        return (x, y)
+
+    def _init_actionchains(self, interaction: str, w3c: bool = False):
+        """
+        ponter: mouse, touch, pen
+        key: key
+        wheel: wheel
+        """
+        _pointer = ["mouse", "touch", "pen"]
+        _class = "pointer" if interaction in _pointer else interaction
+        _args = [interaction]
+
+        _device_map = {"pointer": PointerInput, "key": KeyInput, "wheel": WheelInput}
+        if interaction in _pointer:
+            _args.append("mouse")
+        ac = ActionChains(self.driver, devices=[_device_map[_class](*_args)])
+
+        if w3c:
+            return ac.w3c_actions
+        return ac
+
+    def _move_element_presence_in_dom(self, by: AppiumBy, value: str, start: tuple, end: tuple):
+        def _predicate(driver: WebDriver):
+            try:
+                return driver.find_element(by, value)
+            except NoSuchElementException:
+                self.move_to_location_by_touch([start, end])
+                return False
+
+        return _predicate
