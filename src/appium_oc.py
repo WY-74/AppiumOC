@@ -18,10 +18,6 @@ from appium_oc.decorator import remove_pop_ups
 
 
 class AppiumOC:
-    """
-    blacklist: [(self.by.ID, "xxxxxx"), (self.by.XPATH, "xxxxxx")]
-    """
-
     def __init__(self, driver: WebDriver = None):
         self.by = AppiumBy
         self.blacklist = []
@@ -65,13 +61,14 @@ class AppiumOC:
                 return self.find_elements(by=by, value=value)
         return []
 
-    @remove_pop_ups
-    def get_attribute(self, elem: MobileWebElement, attr: str):
+    def get_attribute(self, by: AppiumBy, value: str,  attr: str):
+        elem = self.find_element(by=by, value=value)
         if attr == "text":
             return elem.text
         return elem.get_attribute(attr)
 
-    def click(self, elem: MobileWebElement):
+    def click(self, by: AppiumBy, value: str):
+        elem = self.find_element(by=by, value=value)
         if self.get_attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             return True
@@ -87,8 +84,8 @@ class AppiumOC:
         self.driver.tap([(x, y)])
         return True
 
-    @remove_pop_ups
-    def send_keys(self, elem: MobileWebElement, text: str):
+    def send_keys(self, by: AppiumBy, value: str, text: str):
+        elem = self.find_element(by=by, value=value)
         elem.send_keys(text)
         return True
 
