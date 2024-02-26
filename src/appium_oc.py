@@ -23,10 +23,9 @@ class AppiumOC:
     """
 
     def __init__(self, driver: WebDriver = None):
+        self.driver = driver
         self.by = AppiumBy
         self.blacklist = []
-        self.driver = driver
-        self.log = "/tmp/log"
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.timeout = 20
 
@@ -40,10 +39,6 @@ class AppiumOC:
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
         return self.driver.find_element(by=by, value=value)
-
-    @remove_pop_ups
-    def find_subelement(self, element: MobileWebElement, by: AppiumBy, value: str):
-        return element.find_element(by=by, value=value)
 
     def must_get_element(self, by: AppiumBy, value: str):
         return WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((by, value)))
@@ -65,30 +60,31 @@ class AppiumOC:
                 return self.find_elements(by=by, value=value)
         return []
 
-    @remove_pop_ups
-    def get_attribute(self, elem: MobileWebElement, attr: str):
+    def get_attribute(self, by: AppiumBy, value: str, attr: str):
+        elem = self.find_element(by, value)
         if attr == "text":
             return elem.text
         return elem.get_attribute(attr)
 
-    def click(self, elem: MobileWebElement):
+    def click(self, by: AppiumBy, value: str):
+        elem = self.find_element(by, value)
         if self.get_attribute(elem, "clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             return True
         elem.click()
         return True
 
-    def multiclick(self, locators: tuple):
+    def multiclick(self, locators: List[tuple]):
         for locator in locators:
-            self.safeclick(locator)
+            self.click(*locator)
         return True
 
     def tap(self, x: int, y: int):
         self.driver.tap([(x, y)])
         return True
 
-    @remove_pop_ups
-    def send_keys(self, elem: MobileWebElement, text: str):
+    def send_keys(self, by: AppiumBy, value: str, text: str):
+        elem = self.find_element(by, value)
         elem.send_keys(text)
         return True
 
