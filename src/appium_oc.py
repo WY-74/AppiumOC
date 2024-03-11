@@ -1,9 +1,11 @@
 import os
 import time
 import random
-from typing import List
+from typing import List, Dict
 from datetime import datetime
+from appium import webdriver
 from appium.webdriver.webdriver import WebDriver
+from appium.options.common.base import AppiumOptions
 from appium.webdriver.common.appiumby import AppiumBy
 from appium.webdriver.webelement import WebElement as MobileWebElement
 from selenium.webdriver.support.ui import WebDriverWait
@@ -28,6 +30,18 @@ class AppiumOC:
         self.blacklist = []
         self.timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         self.timeout = 20
+
+    def remote(self, opts: Dict[str, str | bool], ip: str = "127.0.0.1", port: str = "4723"):
+        if self.driver is not None:
+            return
+
+        options = AppiumOptions()
+        self.driver = webdriver.Remote(f"http://{ip}:{port}", options=options.load_capabilities(opts))
+        return True
+
+    def quit(self):
+        self.driver.quit()
+        return True
 
     def back(self):
         self.driver.back()
@@ -66,9 +80,9 @@ class AppiumOC:
             return elem.text
         return elem.get_attribute(attr)
 
-    def click(self, by: AppiumBy, value: str):
+    def click(self, by, value: str):
         elem = self.find_element(by, value)
-        if self.get_attribute(elem, "clickable") == "false":
+        if elem.get_attribute("clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             return True
         elem.click()
