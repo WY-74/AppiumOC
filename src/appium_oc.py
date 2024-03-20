@@ -47,41 +47,43 @@ class AppiumOC:
         self.driver.back()
 
     @remove_pop_ups
-    def find_element(self, by: AppiumBy, value: str):
+    def find_element(self, locator: tuple):
         """
         ACCESSIBILITY_ID(Android): content-desc
         ACCESSIBILITY_ID(iOS): accessibility-id
         """
-        return self.driver.find_element(by=by, value=value)
+        return self.driver.find_element(*locator)
 
-    def must_get_element(self, by: AppiumBy, value: str):
-        return WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located((by, value)))
+    def must_get_element(self, locator: tuple):
+        return WebDriverWait(self.driver, self.timeout).until(EC.presence_of_element_located(locator))
 
-    def move_to_find_element(self, by: AppiumBy, value: str, start: tuple, end: tuple):
-        return WebDriverWait(self.driver, self.timeout).until(self._move_element_presence_in_dom(by, value, start, end))
+    def move_to_find_element(self, locator: tuple, start: tuple, end: tuple):
+        return WebDriverWait(self.driver, self.timeout).until(
+            self._move_element_presence_in_dom(*locator, start=start, end=end)
+        )
 
-    def must_not_element(self, by: AppiumBy, value: str):
-        return WebDriverWait(self.driver, self.timeout).until_not(EC.presence_of_element_located((by, value)))
+    def must_not_element(self, locator: tuple):
+        return WebDriverWait(self.driver, self.timeout).until_not(EC.presence_of_element_located(locator))
 
-    def find_elements(self, by: AppiumBy, value: str):
-        elems = self.driver.find_elements(by=by, value=value)
+    def find_elements(self, locator: tuple):
+        elems = self.driver.find_elements(*locator)
         if elems:
             return elems
         for black in self.blacklist:
             _elems = self.driver.find_elements(*black)
             if _elems:
                 _elems[0].click()
-                return self.find_elements(by=by, value=value)
+                return self.find_elements(locator)
         return []
 
-    def get_attribute(self, by: AppiumBy, value: str, attr: str):
-        elem = self.find_element(by, value)
+    def get_attribute(self, locator: tuple, attr: str):
+        elem = self.find_element(locator)
         if attr == "text":
             return elem.text
         return elem.get_attribute(attr)
 
-    def click(self, by, value: str):
-        elem = self.find_element(by, value)
+    def click(self, locator: tuple):
+        elem = self.find_element(locator)
         if elem.get_attribute("clickable") == "false":
             self.driver.tap([self._elem_center(elem)])
             return True
@@ -89,16 +91,19 @@ class AppiumOC:
         return True
 
     def multiclick(self, locators: List[tuple]):
+        """
+        locators = [(css_selector, "#id"), (css_selector, ".class")]
+        """
         for locator in locators:
-            self.click(*locator)
+            self.click(locator)
         return True
 
     def tap(self, x: int, y: int):
         self.driver.tap([(x, y)])
         return True
 
-    def send_keys(self, by: AppiumBy, value: str, text: str):
-        elem = self.find_element(by, value)
+    def send_keys(self, locator: tuple, text: str):
+        elem = self.find_element(locator)
         elem.send_keys(text)
         return True
 
@@ -188,10 +193,10 @@ class AppiumOC:
             return ac.w3c_actions
         return ac
 
-    def _move_element_presence_in_dom(self, by: AppiumBy, value: str, start: tuple, end: tuple):
+    def _move_element_presence_in_dom(self, locator: tuple, start: tuple, end: tuple):
         def _predicate(driver: WebDriver):
             try:
-                return driver.find_element(by, value)
+                return driver.find_element(locator)
             except NoSuchElementException:
                 self.move_to_location_by_touch([start, end])
                 return False
